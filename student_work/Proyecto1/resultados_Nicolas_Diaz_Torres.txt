@@ -1,0 +1,180 @@
+EVALUACION - Data Stream Processor
+============================================================
+Estudiante : Nicolas Diaz Torres
+Fecha      : 2026-09-21 20:07:07
+Python     : 3.12.14 (Linux)
+Evaluador  : v1.1
+Clase      : DataProcessor (modulo __main__)
+
+== Interfaz y restricciones ==
+
+[PASS ] Define add, process_next, undo, pending y current_value
+[PASS ] Se puede crear DataProcessor() sin argumentos
+[PASS ] __init__ crea una ArrayQueue, un ArrayStack y una list
+[PASS ] No sustituye Queue/Stack por deque u otra estructura
+[PASS ] ArrayQueue y ArrayStack son las del curso (no reimplementadas)
+
+   Interfaz y restricciones: 5/5 OK
+
+== Pruebas obligatorias (1-17) ==
+
+[PASS ] 1. pending() sobre un procesador vacio
+[PASS ] 2. Agregar un registro
+[PASS ] 3. Agregar varios registros
+[PASS ] 4. Procesamiento FIFO
+[PASS ] 5. Procesar un registro
+[PASS ] 6. Procesar varios registros
+[PASS ] 7. Actualizar una variable existente
+[PASS ] 8. Consultar el valor actual
+[PASS ] 9. Realizar un undo()
+[PASS ] 10. Varios undo() consecutivos
+[PASS ] 11. process_next() con la Queue vacia -> Empty
+[PASS ] 12. undo() con historial vacio -> Empty
+[PASS ] 13. Deshacer la creacion de un dato que no existia
+[PASS ] 14. Varios cambios sobre la misma variable
+[PASS ] 15. add() con formato incorrecto
+[PASS ] 16. add() con value no numerico
+[PASS ] 17. current_value() de un sensor/variable nunca procesado -> KeyError
+
+   Pruebas obligatorias (1-17): 17/17 OK
+
+== Casos borde adicionales ==
+
+[PASS ] undo de una creacion entre actualizaciones de otra variable
+[PASS ] Sensores y variables distintos no se mezclan
+[PASS ] Acepta int y float; sigue funcionando tras un Empty
+
+   Casos borde adicionales: 3/3 OK
+
+== Bonus: redo() (opcional) ==
+
+[PASS ] redo() tras un undo
+[PASS ] Varios undo y varios redo (orden inverso)
+[PASS ] redo() recrea un dato que habia sido deshecho
+
+   Bonus: redo() (opcional): 3/3 OK
+
+== RESUMEN ==
+
+   Interfaz y restricciones          5/ 5 OK   0 fallo(s)
+   Pruebas obligatorias (1-17)      17/17 OK   0 fallo(s)
+   Casos borde adicionales           3/ 3 OK   0 fallo(s)
+   Bonus: redo() (opcional)          3/ 3 OK   0 fallo(s)
+
+   Total sin bonus: 25/25 OK
+
+== CODIGO DE LA CLASE ==
+
+
+class DataProcessor:
+    class InvalidRecord(ValueError):
+        """Excepción para registros inválidos."""
+
+    def __init__(self):
+        self._queue = ArrayQueue()
+        self._history = ArrayStack()   # operaciones realizadas
+        self._redo = ArrayStack()      # operaciones deshechas
+        self._state = []
+
+    def add(self, record):
+        """Agrega un registro a la cola de pendientes. No lo procesa."""
+        try:
+            n = len(record)
+        except TypeError:
+            raise DataProcessor.InvalidRecord(
+                "El registro debe ser una tupla (sensor, variable, value)."
+            )
+
+        if n != 3:
+            raise DataProcessor.InvalidRecord(
+                "El registro debe tener exactamente 3 componentes."
+            )
+
+        sensor, variable, value = record
+
+        if isinstance(value, bool) or not isinstance(value, numbers.Number):
+            raise DataProcessor.InvalidRecord(
+                "El 'value' del registro debe ser numérico."
+            )
+
+        self._queue.enqueue((sensor, variable, value))
+
+    def _find_index(self, sensor, variable):
+        """Busca (sensor, variable) en el estado actual. Retorna -1 si no existe."""
+        for i in range(len(self._state)):
+            s, v, _ = self._state[i]
+            if s == sensor and v == variable:
+                return i
+        return -1
+
+    def process_next(self):
+        """Procesa el registro más antiguo de la cola y actualiza el estado."""
+        record = self._queue.dequeue()  # Empty si la cola está vacía
+        sensor, variable, value = record
+
+        idx = self._find_index(sensor, variable)
+
+        if idx == -1:
+            previous_value = None
+            existed_before = False
+            self._state.append(record)
+        else:
+            previous_value = self._state[idx][2]
+            existed_before = True
+            self._state[idx] = record
+
+        self._history.push((record, previous_value, existed_before))
+
+        # Al realizar una nueva operación ya no tiene sentido rehacer
+        self._redo = ArrayStack()
+
+        return record
+
+    def undo(self):
+        """Deshace el último cambio aplicado por process_next()."""
+        record, previous_value, existed_before = self._history.pop()
+
+        sensor, variable, _ = record
+        idx = self._find_index(sensor, variable)
+
+        if existed_before:
+            self._state[idx] = (sensor, variable, previous_value)
+        else:
+            del self._state[idx]
+
+        # Guardar para posible redo
+        self._redo.push((record, previous_value, existed_before))
+
+    def redo(self):
+        """Reaplica el último cambio deshecho."""
+        record, previous_value, existed_before = self._redo.pop()
+
+        sensor, variable, value = record
+
+        idx = self._find_index(sensor, variable)
+
+        if idx == -1:
+            self._state.append(record)
+        else:
+            self._state[idx] = record
+
+        # Vuelve a quedar en el historial
+        self._history.push((record, previous_value, existed_before))
+
+        return record
+
+    def current_value(self, sensor, variable):
+        """Devuelve el valor actual asociado con sensor/variable."""
+        for s, v, value in self._state:
+            if s == sensor and v == variable:
+                return value
+
+        raise KeyError((sensor, variable))
+
+    def pending(self):
+        """Número de registros pendientes por procesar."""
+        return len(self._queue)
+
+== INTEGRIDAD ==
+SHA256 codigo de la clase : d6f1f4caa79b848ab70496a659d316d9350fedbd33394b30c92e42709064f85c
+SHA256 de este informe    : a97201c5a539225f23c4ecd9ebd291056e3f9eef82c40c5fe436bfb1e8039cd5

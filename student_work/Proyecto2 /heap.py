@@ -75,15 +75,22 @@ class Heap:
     # ------------------------------------------------------------------
     # Imagen
     # ------------------------------------------------------------------
-    def dibujar(self, titulo=""):
-        """Muestra el árbol del heap (sin el -INF de la posición 0)."""
+    def dibujar(self, titulo="", archivo=None):
+        """Muestra el árbol del heap (sin el -INF de la posición 0).
+
+        Si `archivo` se especifica, la figura se guarda allí en vez de mostrarse.
+        """
         n = len(self)
         if n == 0:
             fig, ax = plt.subplots(figsize=(4, 1.5))
             ax.text(0.5, 0.5, "Heap vacío", ha="center", va="center", fontsize=12)
             ax.set_title(titulo)
             ax.axis("off")
-            plt.show()
+            if archivo is not None:
+                fig.savefig(archivo, dpi=200, bbox_inches="tight")
+                plt.close(fig)
+            else:
+                plt.show()
             return
 
         niveles = n.bit_length()          # profundidad del árbol completo
@@ -122,7 +129,11 @@ class Heap:
         ax.axis("off")
         if titulo:
             ax.set_title(titulo)
-        plt.show()
+        if archivo is not None:
+            fig.savefig(archivo, dpi=200, bbox_inches="tight")
+            plt.close(fig)
+        else:
+            plt.show()
 
 
 if __name__ == "__main__":

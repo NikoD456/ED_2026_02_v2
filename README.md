@@ -220,4 +220,4 @@ Escanea el código QR o entra directamente al enlace para consultar tus notas:
 
 - Fecha: Jueves 19 de noviembre
 - Hora: 7 - 9 AM
-- Lugar: Universidad Externado de Colombia
+- Lugar: Universidad Externado de Colombia, D304
